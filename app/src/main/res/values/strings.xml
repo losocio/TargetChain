@@ -1,3 +1,31 @@
 <resources>
     <string name="app_name">TargetChain</string>
+
+    <string name="notification_channel_alarms">Ringing alarms</string>
+    <string name="notification_ringing_title">Alarm</string>
+    <string name="notification_ringing_text">Tap to open the alarm</string>
+
+    <string name="alarm_ringing_title">Wake up!</string>
+    <string name="alarm_stop_temporary">Stop (temporary)</string>
+
+    <string name="permissions_title">Permissions</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_exact_alarms">Exact alarms</string>
+    <string name="permission_full_screen">Full-screen alarm</string>
+    <string name="permission_display_over_apps">Display over other apps</string>
+    <string name="permission_battery">Unrestricted battery (optional)</string>
+    <string name="permission_battery_hint">Grant opens App info: choose Battery > Unrestricted. On Samsung, also add TargetChain to \"Never sleeping apps\" in battery settings.</string>
+    <string name="permission_granted">OK</string>
+    <string name="permission_grant">Grant</string>
+
+    <string name="test_alarm_title">Test alarm</string>
+    <string name="test_alarm_none">No alarm scheduled</string>
+    <string name="test_alarm_scheduled_at">Scheduled at %1$s</string>
+    <string name="test_alarm_schedule_failed">Could not schedule the alarm: exact alarm permission missing.</string>
+    <string name="test_alarm_pick_time">Pick time</string>
+    <string name="test_alarm_in_one_minute">Next minute</string>
+    <string name="test_alarm_cancel">Cancel alarm</string>
+
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Cancel</string>
 </resources>
