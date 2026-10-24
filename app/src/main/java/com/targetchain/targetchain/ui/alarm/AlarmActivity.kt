@@ -3,10 +3,14 @@ package com.targetchain.targetchain.ui.alarm
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.res.stringResource
+import com.targetchain.targetchain.BuildConfig
+import com.targetchain.targetchain.R
 import com.targetchain.targetchain.alarm.AlarmReceiver
 import com.targetchain.targetchain.alarm.AlarmRingingService
 import com.targetchain.targetchain.ui.theme.TargetChainTheme
@@ -26,9 +30,23 @@ class AlarmActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this) { }
         setContent {
             TargetChainTheme {
-                AlarmScreen(onStop = ::stopAlarm)
+                // Debug builds show the alarm volume, to check the volume protection in silent test mode.
+                val debugText = if (BuildConfig.DEBUG) {
+                    val volume = rememberAlarmVolume()
+                    stringResource(R.string.alarm_debug_volume, volume.current, volume.max)
+                } else {
+                    null
+                }
+                AlarmScreen(onStop = ::stopAlarm, debugText = debugText)
             }
         }
+    }
+
+    // Volume down is ignored while ringing. AlarmRingingService also restores the alarm volume to
+    // max when it's lowered in other ways (panel slider, keys with the screen off).
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && AlarmRingingService.isRinging) return true
+        return super.onKeyDown(keyCode, event)
     }
 
     // AlarmRingingService reopens this screen while the alarm rings and it isn't visible.

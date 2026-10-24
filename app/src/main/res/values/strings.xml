@@ -7,6 +7,7 @@
 
     <string name="alarm_ringing_title">Wake up!</string>
     <string name="alarm_stop_temporary">Stop (temporary)</string>
+    <string name="alarm_debug_volume">Alarm volume: %1$d/%2$d</string>
 
     <string name="permissions_title">Permissions</string>
     <string name="permission_notifications">Notifications</string>
@@ -18,14 +19,31 @@
     <string name="permission_granted">OK</string>
     <string name="permission_grant">Grant</string>
 
-    <string name="test_alarm_title">Test alarm</string>
-    <string name="test_alarm_none">No alarm scheduled</string>
-    <string name="test_alarm_scheduled_at">Scheduled at %1$s</string>
-    <string name="test_alarm_schedule_failed">Could not schedule the alarm: exact alarm permission missing.</string>
-    <string name="test_alarm_pick_time">Pick time</string>
-    <string name="test_alarm_in_one_minute">Next minute</string>
-    <string name="test_alarm_cancel">Cancel alarm</string>
+    <string name="alarm_list_title">Alarms</string>
+    <string name="alarm_list_add">New alarm</string>
+    <string name="alarm_list_empty">No alarms yet. Tap + to create one.</string>
+    <string name="alarm_default_name">Alarm</string>
+    <string name="alarm_schedule_failed">Could not enable the alarm: exact alarm permission missing.</string>
+    <string name="alarm_delete">Delete</string>
+    <string name="alarm_delete_title">Delete alarm?</string>
+    <string name="alarm_delete_message">\"%1$s\" will be deleted.</string>
+
+    <string name="alarm_edit_title_new">New alarm</string>
+    <string name="alarm_edit_title">Edit alarm</string>
+    <string name="alarm_edit_save">Save</string>
+    <string name="alarm_edit_name">Name</string>
+    <string name="alarm_edit_time">Time</string>
+    <string name="alarm_edit_next_minute">Next minute (debug)</string>
+    <string name="alarm_edit_ringtone">Ringtone</string>
+
+    <string name="ringtone_picker_title">Ringtone</string>
+    <string name="ringtone_default">Default alarm tone</string>
+    <string name="ringtone_unknown">Unknown tone</string>
+
+    <string name="silent_test_mode">Silent test mode (debug)</string>
+    <string name="silent_test_mode_hint">The alarm rings with the tone muted, and ringtone previews are muted too. Everything else works as usual, including the alarm volume protection.</string>
 
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
+    <string name="navigate_back">Back</string>
 </resources>
