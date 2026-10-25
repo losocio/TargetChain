@@ -95,3 +95,12 @@ Important decisions and why, deviations from the plan or scope and their reasons
 - **Icons as vector drawables** (`ic_add`, `ic_delete`, `ic_arrow_back`, Material icons, Apache 2.0) instead of adding the `material-icons` dependency.
 - **The debug home screen is gone.** The alarm list replaces the test alarm. The permissions card is shown at the top of the list while any permission is missing (including the optional battery one), and the silent test mode switch is at the bottom (debug only). The editor has a "Next minute" button in debug builds only, to test quickly.
 - **No schema change:** the alarm name is `Routine.name`. Step 4 will probably need an activity name per alarm (`Alarm.name`), which will be a migration.
+
+## Scope changes for the intermediate delivery (2026-10-25)
+
+### Post-check, random challenge order and custom tones moved to the TFG (scope deviation, 2026-10-25)
+- **Decision:** three features leave the Proyectos IV scope and move to Phase 2 (TFG):
+  - post-check that the user is still awake after the challenge;
+  - random order of challenges (challenges keep a fixed order);
+  - custom tones and random-order playlists. The ringtone is chosen from the device's preinstalled alarm tones only. Roadmap step 6 is now multi-device testing and bug fixing.
+- **Why:** they aren't part of the core to validate by 29 Nov (chaining with challenges and basic anti-evasion), and the project is about two weeks behind the original milestones. Post-check was already low priority and is meant for single-alarm chains.

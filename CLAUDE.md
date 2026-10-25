@@ -35,13 +35,11 @@ This list is not fixed: features may be dropped, postponed or modified, and new 
 ### Phase 1: Proyectos IV, implement first
 1. **Per-alarm config**: number, type and order of challenges; ringtone from a preinstalled list.
 2. **Challenges**: hidden password, QR/barcode scan, NFC tag. First get one working alarm dismissed by a challenge.
-3. **Alarm chaining** (core feature, must be complete). The phone is usable during the countdown; restrictions apply only while an alarm rings.
+3. **Alarm chaining** (core feature, must be complete). While a routine is running, the chain and its alarms can't be disabled or edited until it ends. The phone is usable during the countdown; alarm-screen restrictions apply only while an alarm rings.
 4. **Anti-evasion**: block leaving the alarm screen, block volume down while ringing. Built and tested together with each feature, not left for the end.
-5. **Post-check** (low priority): 10-20 min after the challenge, ask the user to confirm they're awake; if not, the alarm rings again (meant for single-alarm chains).
-6. **Custom tones and random-order playlists** (lowest priority, drop if short on time).
 
 ### Phase 2: TFG (later)
-Everything not listed in Phase 1: extra alarm options (snooze, TTS, volume ramp, random challenge order), timer start, temporary mute and emergency exit, more challenges (steps, heart rate, AI recognition, pose photo; none doable lying down), advanced anti-evasion (blocking power-off/uninstall/force-stop, money deposit), guided setup.
+Everything not listed in Phase 1: extra alarm options (custom tones and random-order playlists, snooze, TTS, volume ramp, random challenge order), timer start, temporary mute and emergency exit, more challenges (steps, heart rate, AI recognition, pose photo; none doable lying down), advanced anti-evasion (post-check that the user is still awake, blocking power-off/uninstall/force-stop, money deposit), guided setup.
 
 ## Roadmap (iterate, one step at a time)
 Anti-evasion is not a separate step: each step includes the measures that apply to what it builds, implemented and tested on the device together with the feature (e.g. a new challenge screen can't be left or bypassed).
@@ -50,7 +48,7 @@ Anti-evasion is not a separate step: each step includes the measures that apply 
 3. Challenge configuration + hidden password challenge.
 4. Alarm chaining.
 5. QR/barcode challenge, NFC challenge.
-6. Custom tones, multi-device testing, bug fixing.
+6. Multi-device testing, bug fixing.
 
 ## Working rules
 - Before implementing anything non-trivial, propose a short plan and wait for my OK.
