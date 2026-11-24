@@ -36,9 +36,10 @@ class AlarmListViewModel(
         permissions,
         scheduleFailed,
         silentTestMode,
-    ) { routines, permissions, failed, silent ->
+        alarmStateStore.activeRoutineIdFlow,
+    ) { routines, permissions, failed, silent, activeRoutineId ->
         AlarmListUiState(
-            alarms = routines.mapNotNull { it.toListItem() }
+            alarms = routines.mapNotNull { it.toListItem(activeRoutineId) }
                 .sortedWith(compareBy({ it.startTimeMinutes }, { it.routineId })),
             permissions = permissions,
             scheduleFailed = failed,
@@ -57,10 +58,12 @@ class AlarmListViewModel(
 
     /**
      * Enabling schedules the alarm; disabling cancels its pending ring. Disabling doesn't stop an
-     * alarm that is already ringing: that only happens from the alarm screen.
+     * alarm that is already ringing: that only happens from the alarm screen. A running routine
+     * can't be changed at all.
      */
     fun onEnabledChange(routineId: Long, isEnabled: Boolean) {
         viewModelScope.launch {
+            if (repository.isRoutineRunning(routineId)) return@launch
             val alarm = repository.getRoutine(routineId)?.firstAlarm ?: return@launch
             if (isEnabled) {
                 val scheduled = scheduler.schedule(alarm)
@@ -74,9 +77,10 @@ class AlarmListViewModel(
         }
     }
 
-    /** Like disabling, deleting doesn't stop an alarm that is already ringing. */
+    /** A running routine can't be deleted. */
     fun onDelete(routineId: Long) {
         viewModelScope.launch {
+            if (repository.isRoutineRunning(routineId)) return@launch
             repository.getRoutine(routineId)?.firstAlarm?.let { scheduler.cancel(it.id) }
             repository.deleteRoutine(routineId)
         }
@@ -87,13 +91,14 @@ class AlarmListViewModel(
         silentTestMode.value = enabled
     }
 
-    private fun RoutineWithAlarms.toListItem(): AlarmListItem? {
+    private fun RoutineWithAlarms.toListItem(activeRoutineId: Long?): AlarmListItem? {
         val startTime = firstAlarm?.startTimeMinutes ?: return null
         return AlarmListItem(
             routineId = routine.id,
             name = routine.name,
             startTimeMinutes = startTime,
             isEnabled = routine.isEnabled,
+            isRunning = routine.id == activeRoutineId,
         )
     }
 

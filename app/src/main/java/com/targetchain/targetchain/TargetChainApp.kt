@@ -5,6 +5,7 @@ import android.content.Context
 import com.targetchain.targetchain.alarm.AlarmNotifications
 import com.targetchain.targetchain.alarm.AlarmScheduler
 import com.targetchain.targetchain.alarm.AlarmStateStore
+import com.targetchain.targetchain.data.PasswordRepository
 import com.targetchain.targetchain.data.RoutineRepository
 import com.targetchain.targetchain.data.db.AppDatabase
 import com.targetchain.targetchain.ringtone.RingtoneCatalog
@@ -27,9 +28,13 @@ class TargetChainApp : Application() {
 /** Manual dependency container, created once per process. [context] is the Application. */
 class AppContainer(context: Context) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    val routineRepository = RoutineRepository(AppDatabase.create(context).routineDao())
-    val alarmScheduler = AlarmScheduler(context)
+    private val database = AppDatabase.create(context)
     val alarmStateStore = AlarmStateStore(context)
+    val routineRepository = RoutineRepository(database.routineDao()) { routineId ->
+        alarmStateStore.activeRoutineId == routineId
+    }
+    val passwordRepository = PasswordRepository(database.passwordDao())
+    val alarmScheduler = AlarmScheduler(context)
     val ringtoneCatalog = RingtoneCatalog(context)
 }
 

@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -43,6 +44,7 @@ import com.targetchain.targetchain.ui.common.formatTime
 fun AlarmEditScreen(
     viewModel: AlarmEditViewModel,
     onPickRingtone: (selectedUri: String?) -> Unit,
+    onOpenChallenges: () -> Unit,
     onClose: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -57,6 +59,7 @@ fun AlarmEditScreen(
         onTimeChange = viewModel::onTimeChange,
         onSetNextMinute = viewModel::onSetNextMinute,
         onPickRingtone = { onPickRingtone(uiState.ringtoneUri) },
+        onOpenChallenges = onOpenChallenges,
         onSave = viewModel::onSave,
         onBack = onClose,
     )
@@ -70,6 +73,7 @@ private fun AlarmEditContent(
     onTimeChange: (Int) -> Unit,
     onSetNextMinute: () -> Unit,
     onPickRingtone: () -> Unit,
+    onOpenChallenges: () -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -87,7 +91,7 @@ private fun AlarmEditContent(
                     }
                 },
                 actions = {
-                    TextButton(onClick = onSave, enabled = !uiState.isLoading && !uiState.isSaving) {
+                    TextButton(onClick = onSave, enabled = uiState.canSave) {
                         Text(stringResource(R.string.alarm_edit_save))
                     }
                 },
@@ -103,6 +107,12 @@ private fun AlarmEditContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (uiState.isRoutineRunning) {
+                Text(
+                    stringResource(R.string.alarm_edit_running),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
@@ -133,6 +143,27 @@ private fun AlarmEditContent(
                     Text(stringResource(R.string.alarm_edit_ringtone), style = MaterialTheme.typography.labelLarge)
                     Text(uiState.ringtoneTitle, style = MaterialTheme.typography.bodyLarge)
                 }
+            }
+
+            Card(onClick = onOpenChallenges, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.alarm_edit_challenges), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (uiState.hasChallenges) {
+                            pluralStringResource(R.plurals.alarm_edit_challenge_count, uiState.challenges.size, uiState.challenges.size)
+                        } else {
+                            stringResource(R.string.alarm_edit_no_challenges)
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+            if (!uiState.hasChallenges) {
+                Text(
+                    stringResource(R.string.alarm_edit_challenge_required),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

@@ -7,15 +7,18 @@ import androidx.room.RoomDatabase
 import com.targetchain.targetchain.data.model.Alarm
 import com.targetchain.targetchain.data.model.Challenge
 import com.targetchain.targetchain.data.model.Routine
+import com.targetchain.targetchain.data.model.SavedPassword
 
 @Database(
-    entities = [Routine::class, Alarm::class, Challenge::class],
-    version = 1,
+    entities = [Routine::class, Alarm::class, Challenge::class, SavedPassword::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun routineDao(): RoutineDao
+
+    abstract fun passwordDao(): PasswordDao
 
     companion object {
         fun create(context: Context): AppDatabase =

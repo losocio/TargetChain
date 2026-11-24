@@ -6,6 +6,8 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import com.targetchain.targetchain.data.model.Alarm
+import com.targetchain.targetchain.data.model.Challenge
+import com.targetchain.targetchain.data.model.ChallengeConfig
 import com.targetchain.targetchain.data.model.Routine
 import com.targetchain.targetchain.data.model.RoutineWithAlarms
 import kotlinx.coroutines.flow.Flow
@@ -49,9 +51,19 @@ interface RoutineDao {
     @Query("SELECT * FROM alarms WHERE routineId = :routineId ORDER BY position LIMIT 1")
     suspend fun getFirstAlarm(routineId: Long): Alarm?
 
+    @Query("SELECT * FROM challenges WHERE alarmId = :alarmId ORDER BY position")
+    suspend fun getChallenges(alarmId: Long): List<Challenge>
+
+    @Query("DELETE FROM challenges WHERE alarmId = :alarmId")
+    suspend fun deleteChallenges(alarmId: Long)
+
+    @Insert
+    suspend fun insertChallenges(challenges: List<Challenge>)
+
     /**
      * Creates (when [routineId] is null or no longer exists) or updates an enabled routine with a
-     * single alarm. Returns the saved alarm.
+     * single alarm, replacing the alarm's challenges with [challenges] in that order. Returns the
+     * saved alarm.
      */
     @Transaction
     suspend fun saveSingleAlarmRoutine(
@@ -59,6 +71,7 @@ interface RoutineDao {
         name: String,
         startTimeMinutes: Int,
         ringtoneUri: String?,
+        challenges: List<ChallengeConfig>,
     ): Alarm {
         val existingRoutine = routineId?.let { getRoutine(it) }
         val savedRoutineId = if (existingRoutine != null) {
@@ -69,7 +82,7 @@ interface RoutineDao {
         }
 
         val existingAlarm = getFirstAlarm(savedRoutineId)
-        return if (existingAlarm != null) {
+        val savedAlarm = if (existingAlarm != null) {
             existingAlarm.copy(startTimeMinutes = startTimeMinutes, ringtoneUri = ringtoneUri)
                 .also { updateAlarm(it) }
         } else {
@@ -80,6 +93,20 @@ interface RoutineDao {
                 ringtoneUri = ringtoneUri,
             ).let { it.copy(id = insertAlarm(it)) }
         }
+
+        deleteChallenges(savedAlarm.id)
+        insertChallenges(
+            challenges.mapIndexed { position, config ->
+                Challenge(
+                    alarmId = savedAlarm.id,
+                    position = position,
+                    type = config.type,
+                    passwordId = config.passwordId,
+                    expectedValue = config.expectedValue,
+                )
+            }
+        )
+        return savedAlarm
     }
 
     /** First alarm of every enabled routine; used to reschedule after reboot or time change. */

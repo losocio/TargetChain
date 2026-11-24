@@ -22,4 +22,6 @@ data class AlarmListItem(
     /** Minutes since midnight. */
     val startTimeMinutes: Int,
     val isEnabled: Boolean,
+    /** Its routine is running: it can't be edited, disabled or deleted until it ends. */
+    val isRunning: Boolean = false,
 )

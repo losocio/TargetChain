@@ -4,11 +4,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.targetchain.targetchain.BuildConfig
 import com.targetchain.targetchain.R
 import com.targetchain.targetchain.alarm.AlarmReceiver
@@ -17,9 +22,12 @@ import com.targetchain.targetchain.ui.theme.TargetChainTheme
 
 /**
  * Full-screen alarm UI, shown over the lock screen by the ringing notification's full-screen
- * intent, or started directly by AlarmRingingService. The user can't leave it while the alarm rings.
+ * intent, or started directly by AlarmRingingService. The user can't leave it while the alarm rings,
+ * and the alarm only stops once its last challenge is completed.
  */
 class AlarmActivity : ComponentActivity() {
+
+    private val viewModel: AlarmViewModel by viewModels { AlarmViewModel.Factory }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,8 +36,14 @@ class AlarmActivity : ComponentActivity() {
         enableEdgeToEdge()
         // Back does nothing: the alarm can only be stopped from this screen.
         onBackPressedDispatcher.addCallback(this) { }
+        // No autofill: a password manager must not fill in (or offer) the challenge password.
+        window.decorView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         setContent {
             TargetChainTheme {
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                LaunchedEffect(uiState.isFinished) {
+                    if (uiState.isFinished) stopAlarm()
+                }
                 // Debug builds show the alarm volume, to check the volume protection in silent test mode.
                 val debugText = if (BuildConfig.DEBUG) {
                     val volume = rememberAlarmVolume()
@@ -37,7 +51,13 @@ class AlarmActivity : ComponentActivity() {
                 } else {
                     null
                 }
-                AlarmScreen(onStop = ::stopAlarm, debugText = debugText)
+                AlarmScreen(
+                    uiState = uiState,
+                    onPasswordSubmit = viewModel::onPasswordSubmitted,
+                    onStop = ::stopAlarm,
+                    showStopButton = BuildConfig.DEBUG || uiState.hasNoChallenges,
+                    debugText = debugText,
+                )
             }
         }
     }

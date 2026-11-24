@@ -104,3 +104,70 @@ Important decisions and why, deviations from the plan or scope and their reasons
   - random order of challenges (challenges keep a fixed order);
   - custom tones and random-order playlists. The ringtone is chosen from the device's preinstalled alarm tones only. Roadmap step 6 is now multi-device testing and bug fixing.
 - **Why:** they aren't part of the core to validate by 29 Nov (chaining with challenges and basic anti-evasion), and the project is about two weeks behind the original milestones. Post-check was already low priority and is meant for single-alarm chains.
+
+## Tooling: Claude desktop project reads the docs (2026-11-22)
+
+Not part of the app: how the separate Claude desktop project (research and brainstorming) gets context from the docs that Claude Code maintains.
+
+### The desktop project is linked to `docs/` only
+- **Decision:** link only the `docs/` folder to the Claude desktop project, not the repo root or the code folders.
+- **Why:** the project needs to know how the app is built and what was decided, not to read the code. Linking the root would make all the code reachable, plus noise like `build/`, `.gradle/` and `.idea/` that can confuse the model.
+
+### `docs/` is read-only for the desktop project
+- **Decision:** Claude Code writes and maintains every file in `docs/`. The desktop project's instructions tell it to read these notes for context but never edit, rename, move or delete any file in `docs/`. If a note looks wrong or out of date, it tells me in the chat instead.
+- **Why:** one writer per file. The two sides don't know what the other is doing, so if both edited the same file, one could overwrite the other's changes from a stale copy or leave contradicting entries. It's a written convention in each side's instructions, not a technical lock.
+
+### Claude Code's instructions live in `docs/claude-code-instructions.md`
+- **Decision:** the contents of the root `CLAUDE.md` moved to `docs/claude-code-instructions.md`. The root `CLAUDE.md` keeps only a short note and the import line `@docs/claude-code-instructions.md`, so Claude Code loads the same instructions as before. The desktop project's instructions explain that this file is effectively Claude Code's `CLAUDE.md`.
+- **Why:** the desktop project can read Claude Code's rules and conventions through `docs/` without getting access to the code folders.
+- **Discarded:**
+  - Linking the root folder and telling the desktop project to read only `CLAUDE.md`: the code would still be reachable, kept out only by an instruction.
+  - Uploading a copy of `CLAUDE.md` to the desktop project: it goes stale as soon as Claude Code updates the original.
+  - A symlink or hard link inside `docs/`: folder access may not follow symlinks, and a hard link breaks silently when an editor saves by replacing the file.
+
+### New instructions go in the docs file, never in the root `CLAUDE.md`
+- **Decision:** both files carry a note. The root `CLAUDE.md` says that all project instructions live in `docs/claude-code-instructions.md` and that nothing should be added to the root file. The top of `docs/claude-code-instructions.md` says it is the project's `CLAUDE.md` and that instructions are added or changed there.
+- **Why:** when Claude Code updates its instructions, it tends to edit the root `CLAUDE.md` directly. A rule added there would be invisible to the desktop project, and the two files would drift apart.
+
+## Step 3: challenge system and password challenge (2026-11-23)
+
+### Challenges are shown inside the alarm screen
+- **Decision:** every challenge type is shown inside `AlarmActivity`, one at a time in the configured order, instead of in its own screen. The alarm stops only after the last one.
+- **Why:** Back and volume-down blocking, reopening every second, the watchdog and ringing again after a reboot already apply to that screen, so every challenge type (QR and NFC in step 5 too) gets them with nothing extra. The camera and NFC also need an activity, which this one is.
+- **Progress in memory only:** the number of completed challenges lives in `AlarmRingingService` (in memory), reset when an alarm starts ringing. After a reboot or a killed process the challenges start from zero, as the step requires; if Android only recreates the alarm screen, the progress is kept.
+- **Safety net:** if an alarm rings with no challenges (only possible with corrupted data), the alarm screen shows a Stop button so the user is never trapped. Otherwise the Stop button exists only in debug builds.
+
+### Challenge configuration shares the editor's ViewModel (nested navigation graph)
+- **Decision:** the editor, ringtone picker, challenge list, type selector and password configuration form a nested navigation graph (`alarm/{routineId}`) that shares one `AlarmEditViewModel`, which holds the whole draft (name, time, tone and challenges). Save writes it in one Room transaction; leaving the editor discards it. The ringtone picker now hands its result to that ViewModel directly instead of through the back stack `SavedStateHandle`.
+- **Why:** the step requires challenge changes to be saved and discarded like the rest of the alarm. Sharing the ViewModel is simpler than passing lists between screens.
+- **Reordering with up/down arrows** instead of drag and drop: simpler, accessible, no library.
+- **Editing an existing challenge isn't supported:** to change it, delete it and add it again (not in the step goals).
+
+### Saved passwords: a shared, named library, stored as a salted hash
+- **Decision:** passwords live in their own table (`passwords`: name unique ignoring case, hash, salt), shared by all alarms. A password challenge references one (`Challenge.passwordId`). Creating, renaming and deleting a password apply immediately, not as part of the alarm edit, because other alarms may use it.
+- **Hash instead of plain text:** PBKDF2-HMAC-SHA256, 100,000 iterations, random 16-byte salt per password, `javax.crypto` (built into Android, no dependency). The app never needs to show a password again, so plain text has no use, and with a hash it can't be read from a backup or the database (`allowBackup` is on).
+- **Comparison:** case-sensitive; leading and trailing spaces are ignored (trimmed when created and when checked), inner spaces are kept; a blank password isn't accepted. Spaces at the ends are invisible on paper and some keyboards add them. Because only the hash is stored, this normalization can't be changed later without creating the passwords again.
+- **Names:** trimmed and compared ignoring case ("Desk" and "desk" are the same name).
+
+### A password in use can't be deleted
+- **Decision:** a password can't be deleted while a saved alarm or the alarm being edited uses it. The dialog lists the alarms that use it; their challenge must be removed first. The foreign key is `RESTRICT`, so the database refuses it even if the UI failed.
+- **Why:** no alarm can end up without a valid challenge, and it also covers the rule that a password used by a running routine can't be deleted.
+- **Discarded:** deleting the challenges in cascade (alarms could be left enabled with zero challenges) and leaving them pointing to nothing.
+- **Known limitation:** if the alarm being edited still uses it in its saved version, it must be saved first (the dialog names it).
+
+### Running routine is locked
+- **Decision:** `AlarmStateStore.activeRoutineId` (persisted) is set when an alarm of the routine starts ringing and cleared when the routine ends (for now, when its alarm stops; from step 4 it will stay set during the countdown). While set, the list shows the alarm as "Running" with its switch and delete disabled, tapping it shows a message, and `RoutineRepository` refuses to save, disable or delete it (if it starts ringing while the editor is open, Save is refused).
+- **Interpretation:** "no alarm or challenge can be edited" applies to the alarms of the running routine; other alarms stay editable.
+
+### Password typed by hand only
+- **Decision:** the challenge field (`OutlinedSecureTextField`) has an `InputTransformation` that rejects any change inserting more than one character at once, and an empty text toolbar so no "Paste" menu appears. Autofill is disabled for both activities (`IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS`), and the new password screen also cancels any autofill session when left, so password managers don't offer to save or fill it.
+- **Keyboard learning:** both the challenge field and the creation fields use the password keyboard type with autocorrect off; Samsung Keyboard and Gboard don't learn or suggest in password fields. On creation the text is visible (`TextObfuscationMode.Visible`) and pasting is allowed.
+- **What can't be blocked:** memorizing the password; writing it down on the phone (notes, photos) or photographing the creation screen with another device; a third-party keyboard, accessibility or automation app that types one character at a time; pasting a single character; a keyboard that ignores the password type.
+- **Discarded by the user:** `FLAG_SECURE` on the new password screen (to block screenshots while the password is visible).
+
+### Alarm screen not resizable; other windows over it are a known limitation (scope deviation, 2026-11-24)
+- **Problem (seen on device):** with Samsung pop-up view or split screen set up before the alarm rang, another app stays usable next to or over the alarm screen, and the per-second check doesn't react because the alarm screen still counts as visible. The other window could be used to read a password stored on the phone or to force stop the app from Settings.
+- **Decision:** `AlarmActivity` is declared `resizeableActivity="false"`, so on phones Android shouldn't show it in a pop-up window or in half of a split screen, only full screen. One manifest line, no permission. Verified on device (2026-11-24): split screen (with TargetChain or with two other apps) closes and the alarm appears full screen; the alarm screen can't be put in a pop-up window or split screen while ringing. With TargetChain in a pop-up window, the alarm appears full screen over the other app, but the pop-up with TargetChain stays open. Another app's pop-up window stays usable over the alarm.
+- **Also `MainActivity` (2026-11-24):** declared `resizeableActivity="false"` too, so TargetChain can't be opened in a pop-up window or split screen at all. Otherwise its own pop-up stayed over the alarm, and its permission buttons open Settings, where the app can be force stopped. An alarm app doesn't need multi-window.
+- **Known limitation, moved to Phase 2 (TFG):** another app's pop-up window over the alarm stays open, listed with the advanced anti-evasion measures next to blocking force stop.
+- **Discarded for now:** a full-screen overlay window (`TYPE_APPLICATION_OVERLAY`, with the existing "Display over other apps" permission) over every app while ringing. It would cover pop-ups and split screen, but the challenge and keyboard would have to move into the overlay, overlays are hidden over the lock screen (so both would be needed), and Back blocking and the step 1 and 3 tests would have to be redone. Too risky before the 29 Nov deadline with step 4 still pending; it's an option for the TFG.

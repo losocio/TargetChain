@@ -30,6 +30,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:resizeableActivity="false"
             android:theme="@style/Theme.TargetChain"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -44,10 +45,12 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
+            android:resizeableActivity="false"
             android:showWhenLocked="true"
             android:taskAffinity=""
             android:theme="@style/Theme.TargetChain"
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize" />
 
         <service
             android:name=".alarm.AlarmRingingService"

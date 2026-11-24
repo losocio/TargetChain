@@ -6,9 +6,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * A challenge that must be completed to dismiss an alarm.
+ * A challenge that must be completed to dismiss an alarm. An alarm's challenges are shown one by
+ * one, ordered by [position].
  *
- * @property expectedValue what the user must provide: the password, the scanned code or the NFC tag id.
+ * @property passwordId saved password of a [ChallengeType.PASSWORD] challenge. A password can't be
+ *   deleted while a challenge uses it (RESTRICT).
+ * @property expectedValue for the challenge types still to come: the scanned code or the NFC tag id.
  */
 @Entity(
     tableName = "challenges",
@@ -19,13 +22,29 @@ import androidx.room.PrimaryKey
             childColumns = ["alarmId"],
             onDelete = ForeignKey.CASCADE,
         ),
+        ForeignKey(
+            entity = SavedPassword::class,
+            parentColumns = ["id"],
+            childColumns = ["passwordId"],
+            onDelete = ForeignKey.RESTRICT,
+        ),
     ],
-    indices = [Index("alarmId")],
+    indices = [Index("alarmId"), Index("passwordId")],
 )
 data class Challenge(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val alarmId: Long,
     val position: Int,
     val type: ChallengeType,
+    val passwordId: Long? = null,
     val expectedValue: String? = null,
 )
+
+/** A challenge as configured in the editor, before it belongs to a saved alarm. */
+data class ChallengeConfig(
+    val type: ChallengeType,
+    val passwordId: Long? = null,
+    val expectedValue: String? = null,
+)
+
+fun Challenge.toConfig() = ChallengeConfig(type, passwordId, expectedValue)

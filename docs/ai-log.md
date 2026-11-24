@@ -31,3 +31,14 @@ One line per prompt sent to the AI assistant. Slash commands (`/effort`, `/btw`,
 2. Finish whatever was left unfinished after an API error interrupted the session (the docs updates after the code).
 3. Report that step 1 had been committed and pushed manually, and that all the step 2 device tests in `device-testing.md` pass.
 4. Decide to commit steps 1 and 2 together in a single commit.
+
+## Step 3
+1. Start step 3 (challenge configuration and password challenge: ordered challenge list per alarm in the editor, password type only; challenges one by one on the alarm screen; no saving without a challenge; Stop button debug-only; tests for pure logic): update the current status and `steps-functionality.md`, then show the plan with proposals for the anti-evasion points (editing while ringing, keyboard learning/paste, step 1 measures with the keyboard open, progress after reboot/kill, password stored in another app on the phone) and the decisions (password generation, viewing vs replacing, clear vs hash, case and spaces).
+2. Restart step 3 with a detailed spec (challenge list, type selector and type configuration screens as part of the alarm edit; reusable named passwords, shown only on creation; challenges one by one while ringing with full anti-evasion, restarting from zero after reboot/kill; no editing or deleting during a running routine; no paste or keyboard learning): update the current status and `steps-functionality.md`, then show the plan with proposals for deleted passwords in use, what can't be blocked when pasting, clear vs hash and case/spaces.
+3. Approve the plan without `FLAG_SECURE` on the new password screen, on the same branch (`main`), and start implementing.
+4. Change `device-testing.md` so each test starts with a checkbox instead of a number: steps 1 and 2 checked, step 3 empty.
+5. Report that all the step 3 device tests pass except the snackbar when tapping a running alarm in the list, and the results of the Samsung pop-up view and split screen tests (the other window stays usable while the alarm rings).
+6. Ask how the full-screen overlay option differs from what is already implemented; then approve making the alarm screen non-resizable, recording what stays open as a known limitation moved to Phase 2, and correct that the running alarm message does appear.
+7. Report the results of the non-resizable alarm screen tests: split screen closes and the alarm can't be put in a pop-up, but an already open pop-up (another app or TargetChain's own list) stays open.
+8. Approve making the main screen non-resizable too, so TargetChain's own pop-up can't stay over the alarm.
+9. Report that all the non-resizable main screen tests pass and mark step 3 as completed.

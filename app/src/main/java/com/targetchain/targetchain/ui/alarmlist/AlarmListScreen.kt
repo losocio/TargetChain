@@ -17,6 +17,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +40,7 @@ import com.targetchain.targetchain.BuildConfig
 import com.targetchain.targetchain.R
 import com.targetchain.targetchain.ui.common.formatTime
 import com.targetchain.targetchain.ui.permissions.PermissionsCard
+import kotlinx.coroutines.launch
 
 @Composable
 fun AlarmListScreen(
@@ -72,9 +76,13 @@ private fun AlarmListContent(
     onSilentTestModeChange: (Boolean) -> Unit,
 ) {
     var alarmToDelete by remember { mutableStateOf<AlarmListItem?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val runningMessage = stringResource(R.string.alarm_running_locked)
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.alarm_list_title)) }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddAlarm) {
                 Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.alarm_list_add))
@@ -112,7 +120,13 @@ private fun AlarmListContent(
             items(uiState.alarms, key = { it.routineId }) { alarm ->
                 AlarmRow(
                     alarm = alarm,
-                    onClick = { onOpenAlarm(alarm.routineId) },
+                    onClick = {
+                        if (alarm.isRunning) {
+                            scope.launch { snackbarHostState.showSnackbar(runningMessage) }
+                        } else {
+                            onOpenAlarm(alarm.routineId)
+                        }
+                    },
                     onEnabledChange = { onEnabledChange(alarm.routineId, it) },
                     onDelete = { alarmToDelete = alarm },
                 )
@@ -155,9 +169,16 @@ private fun AlarmRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(formatTime(alarm.startTimeMinutes), style = MaterialTheme.typography.headlineMedium)
                 Text(alarm.displayName(), style = MaterialTheme.typography.bodyMedium)
+                if (alarm.isRunning) {
+                    Text(
+                        stringResource(R.string.alarm_running),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
-            Switch(checked = alarm.isEnabled, onCheckedChange = onEnabledChange)
-            IconButton(onClick = onDelete) {
+            Switch(checked = alarm.isEnabled, onCheckedChange = onEnabledChange, enabled = !alarm.isRunning)
+            IconButton(onClick = onDelete, enabled = !alarm.isRunning) {
                 Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.alarm_delete))
             }
         }

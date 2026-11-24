@@ -69,6 +69,27 @@ Permissions needed, odd behaviors of Android 12/13 (and newer versions taken int
 - **Behavior:** the preinstalled alarm tones depend on the manufacturer (Samsung ships its own). Tones are identified by a MediaStore URI (`content://media/internal/audio/media/<id>`), which may stop working if a system update renumbers or removes the tones.
 - **Solution:** the list is read with `RingtoneManager` (`TYPE_ALARM`). System tones are in MediaStore's internal storage, so no storage permission is needed. If a saved tone can't be played, the ringing service falls back to the default ringtone (step 1), and the editor shows "Unknown tone". Seen on device: the list shows Samsung's alarm tones and the chosen tone rings (2026-10-24). A tone URI that stops working after an update hasn't been seen.
 
+### Keyboard learning and suggestions (step 3)
+- **Behavior:** keyboards learn words typed in normal fields and offer them later as suggestions, which would reveal the password.
+- **Solution:** every password field uses the password keyboard type (`KeyboardType.Password`) with autocorrect off, also on the creation screen where the text is visible. Samsung Keyboard and Gboard don't learn, suggest or autocorrect in password fields. A third-party keyboard could ignore it. To check on device.
+
+### Pasting into the challenge field (step 3)
+- **Behavior:** text can enter a field in many ways besides typing: the field's Paste menu, the Samsung keyboard clipboard, autofill (Samsung Pass, Google), suggestions, dictation and accessibility "set text".
+- **Solution:** the challenge field rejects any change that inserts more than one character at once (`TypedByHandOnly`), and its text toolbar never shows. Autofill is disabled for both activities (`IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS`), and the new password screen cancels the autofill session when left, so no "save password?" prompt should appear. Can't be blocked: an app (keyboard, accessibility or automation) that types one character at a time, or pasting a single character. To check on device.
+
+### Keyboard over the alarm screen (step 3)
+- **Behavior:** the alarm screen is shown over the lock screen (`showWhenLocked`). With the keyboard open, the first Back closes the keyboard (handled by the keyboard, doesn't leave the screen); volume keys may reach the keyboard first.
+- **Solution:** `AlarmActivity` uses `adjustResize` and `imePadding` so the field stays visible. Back is still blocked once the keyboard is closed, and the per-second check puts the alarm volume back to max even if a keyboard handles the volume keys. Typing on the lock screen with Samsung Keyboard to be checked on device.
+
+### Samsung pop-up view / split screen (seen on device, step 3)
+- **Behavior (Samsung, Android 13, set up before the alarm rang):**
+  - Another app in a pop-up window, TargetChain behind: the pop-up stays open and usable; the alarm fills the screen behind it.
+  - TargetChain in a pop-up window, another app behind: the alarm covers the other app, but not the TargetChain pop-up.
+  - Split screen with TargetChain and another app: split screen stays; the alarm appears only in TargetChain's half and the other half stays usable.
+  - Split screen with two other apps: split screen stays; the alarm covers the app that was opened first (whatever its position) and the second one stays usable.
+  - In every case `AlarmActivity` counts as visible, so the per-second check doesn't react. The other window can be used to read a password stored on the phone, or to open Settings and force stop the app. It applies since step 1.
+- **Solution:** `AlarmActivity` is `resizeableActivity="false"`. Verified on device: split screen closes and the alarm appears full screen, and the alarm screen can't be put in a pop-up or split screen. A pop-up window already open stayed open over it, also TargetChain's own list, so `MainActivity` is non-resizable too (TargetChain can't be in a pop-up or split screen at all; to check on device). Another app's pop-up window over the alarm is a known limitation, moved to Phase 2 (see `decisions.md`).
+
 ## Samsung
 
 ### Battery optimization list hides the app (seen on device)

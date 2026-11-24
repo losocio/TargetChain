@@ -2,6 +2,9 @@ package com.targetchain.targetchain.alarm
 
 import android.content.Context
 import androidx.core.content.edit
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Small persistent state that must survive the process dying or a reboot while an alarm rings.
@@ -16,6 +19,27 @@ class AlarmStateStore(context: Context) {
         get() = prefs.getLong(KEY_RINGING_ALARM_ID, NO_ALARM_ID).takeIf { it != NO_ALARM_ID }
         set(value) = prefs.edit(commit = true) {
             if (value == null) remove(KEY_RINGING_ALARM_ID) else putLong(KEY_RINGING_ALARM_ID, value)
+        }
+
+    private val _activeRoutineId = MutableStateFlow(
+        prefs.getLong(KEY_ACTIVE_ROUTINE_ID, NO_ALARM_ID).takeIf { it != NO_ALARM_ID }
+    )
+
+    /** [activeRoutineId] as a flow, for the screens that lock a running routine. */
+    val activeRoutineIdFlow: StateFlow<Long?> = _activeRoutineId.asStateFlow()
+
+    /**
+     * Routine being run, or null. Set when one of its alarms starts ringing and cleared when the
+     * routine ends (for now, when its alarm stops). Its alarms, challenges and passwords can't be
+     * edited or deleted meanwhile. Only one instance of this class exists per process.
+     */
+    var activeRoutineId: Long?
+        get() = _activeRoutineId.value
+        set(value) {
+            prefs.edit(commit = true) {
+                if (value == null) remove(KEY_ACTIVE_ROUTINE_ID) else putLong(KEY_ACTIVE_ROUTINE_ID, value)
+            }
+            _activeRoutineId.value = value
         }
 
     /** Alarm stream volume before ringing forced it to max, restored when the alarm stops. */
@@ -33,6 +57,7 @@ class AlarmStateStore(context: Context) {
     private companion object {
         const val PREFS_NAME = "alarm_state"
         const val KEY_RINGING_ALARM_ID = "ringing_alarm_id"
+        const val KEY_ACTIVE_ROUTINE_ID = "active_routine_id"
         const val KEY_PREVIOUS_ALARM_VOLUME = "previous_alarm_volume"
         const val KEY_SILENT_TEST_MODE = "silent_test_mode"
         const val NO_ALARM_ID = -1L

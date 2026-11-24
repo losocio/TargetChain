@@ -6,7 +6,12 @@
     <string name="notification_ringing_text">Tap to open the alarm</string>
 
     <string name="alarm_ringing_title">Wake up!</string>
-    <string name="alarm_stop_temporary">Stop (temporary)</string>
+    <string name="alarm_stop_debug">Stop (debug)</string>
+    <string name="alarm_challenge_progress">Challenge %1$d of %2$d</string>
+    <string name="alarm_password_prompt">Type the password \"%1$s\"</string>
+    <string name="alarm_password_label">Password</string>
+    <string name="alarm_password_check">Check</string>
+    <string name="alarm_password_wrong">Wrong password. Try again.</string>
     <string name="alarm_debug_volume">Alarm volume: %1$d/%2$d</string>
 
     <string name="permissions_title">Permissions</string>
@@ -27,6 +32,8 @@
     <string name="alarm_delete">Delete</string>
     <string name="alarm_delete_title">Delete alarm?</string>
     <string name="alarm_delete_message">\"%1$s\" will be deleted.</string>
+    <string name="alarm_running">Running</string>
+    <string name="alarm_running_locked">This alarm can\'t be changed until its routine ends.</string>
 
     <string name="alarm_edit_title_new">New alarm</string>
     <string name="alarm_edit_title">Edit alarm</string>
@@ -35,6 +42,52 @@
     <string name="alarm_edit_time">Time</string>
     <string name="alarm_edit_next_minute">Next minute (debug)</string>
     <string name="alarm_edit_ringtone">Ringtone</string>
+    <string name="alarm_edit_challenges">Challenges</string>
+    <string name="alarm_edit_no_challenges">None</string>
+    <plurals name="alarm_edit_challenge_count">
+        <item quantity="one">%1$d challenge</item>
+        <item quantity="other">%1$d challenges</item>
+    </plurals>
+    <string name="alarm_edit_challenge_required">Add at least one challenge to save the alarm.</string>
+    <string name="alarm_edit_running">This alarm\'s routine is running. It can\'t be saved until it ends.</string>
+
+    <string name="challenge_list_title">Challenges</string>
+    <string name="challenge_add">Add challenge</string>
+    <string name="challenge_row_title">%1$d. %2$s</string>
+    <string name="challenge_move_up">Move up</string>
+    <string name="challenge_move_down">Move down</string>
+    <string name="challenge_delete">Delete challenge</string>
+    <string name="challenge_type_title">Add challenge</string>
+    <string name="challenge_type_password">Password</string>
+    <string name="challenge_type_barcode">QR / barcode</string>
+    <string name="challenge_type_nfc">NFC tag</string>
+    <string name="challenge_password_missing">Deleted password</string>
+
+    <string name="password_challenge_title">Password challenge</string>
+    <string name="password_challenge_add">Add</string>
+    <string name="password_challenge_hint">Choose the password to type when the alarm rings.</string>
+    <string name="password_challenge_empty">No saved passwords yet. Create one to add the challenge.</string>
+    <string name="password_new">New password</string>
+    <string name="password_rename">Rename password</string>
+    <string name="password_rename_title">Rename password</string>
+    <string name="password_delete">Delete</string>
+    <string name="password_delete_title">Delete password?</string>
+    <string name="password_delete_message">\"%1$s\" will be deleted.</string>
+    <string name="password_in_use_title">Password in use</string>
+    <string name="password_in_use_alarms">\"%1$s\" can\'t be deleted because these alarms use it: %2$s. Remove its challenge from them first.</string>
+    <string name="password_in_use_draft">\"%1$s\" is used by a challenge of the alarm you are editing. Remove that challenge first.</string>
+
+    <string name="password_new_title">New password</string>
+    <string name="password_new_explanation">After you create it, the app will never show this password again, only its name. Write it down outside the phone, near the activity this alarm marks: for example, on a piece of paper on your desk, or in a file on your work computer.</string>
+    <string name="password_name">Name</string>
+    <string name="password_name_placeholder">e.g. Desk</string>
+    <string name="password_value">Password</string>
+    <string name="password_repeat">Repeat password</string>
+    <string name="password_create">Create</string>
+    <string name="password_name_empty">Enter a name.</string>
+    <string name="password_name_duplicate">There is already a password with this name.</string>
+    <string name="password_empty">Enter a password.</string>
+    <string name="password_mismatch">The passwords don\'t match.</string>
 
     <string name="ringtone_picker_title">Ringtone</string>
     <string name="ringtone_default">Default alarm tone</string>

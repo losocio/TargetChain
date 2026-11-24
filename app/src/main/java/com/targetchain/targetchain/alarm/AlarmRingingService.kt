@@ -25,6 +25,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -32,6 +35,7 @@ import kotlinx.coroutines.withContext
  * Foreground service that keeps the alarm ringing and shows the full-screen alarm notification.
  * The alarm keeps ringing until it is stopped from the alarm screen: the ringing state is persisted,
  * so a reboot (RescheduleReceiver) or a killed process (watchdog alarm) makes it ring again.
+ * Challenge progress is kept only in memory, so after a reboot or a kill the challenges start over.
  */
 class AlarmRingingService : Service() {
 
@@ -65,6 +69,7 @@ class AlarmRingingService : Service() {
         val container = appContainer
         container.alarmScheduler.scheduleWatchdog(alarmId)
         if (player == null) {
+            _completedChallenges.value = 0
             container.alarmStateStore.ringingAlarmId = alarmId
             // Don't overwrite it if we are ringing again after a kill: the volume is already at max.
             if (container.alarmStateStore.previousAlarmVolume == null) {
@@ -106,6 +111,8 @@ class AlarmRingingService : Service() {
         val alarm = withContext(Dispatchers.IO) {
             runCatching { appContainer.routineRepository.getAlarm(alarmId) }.getOrNull()
         }
+        // Its routine is running until the alarm is stopped: it can't be edited or deleted.
+        if (alarm != null && isRinging) appContainer.alarmStateStore.activeRoutineId = alarm.routineId
         startPlayback(alarm?.ringtoneUri?.toUri() ?: Settings.System.DEFAULT_ALARM_ALERT_URI)
     }
 
@@ -159,6 +166,19 @@ class AlarmRingingService : Service() {
         var isRinging = false
             private set
 
+        private val _completedChallenges = MutableStateFlow(0)
+
+        /**
+         * Challenges of the ringing alarm completed so far, in order. In memory only: it starts at 0
+         * when an alarm starts ringing, also after a reboot or a killed process.
+         */
+        val completedChallenges: StateFlow<Int> = _completedChallenges.asStateFlow()
+
+        /** Marks the challenge at [index] as completed; ignored if it isn't the current one. */
+        fun completeChallenge(index: Int) {
+            _completedChallenges.compareAndSet(index, index + 1)
+        }
+
         fun start(context: Context, alarmId: Long) {
             val intent = Intent(context, AlarmRingingService::class.java)
                 .putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
@@ -173,6 +193,8 @@ class AlarmRingingService : Service() {
             val store = container.alarmStateStore
             val alarmId = store.ringingAlarmId
             store.ringingAlarmId = null
+            store.activeRoutineId = null
+            _completedChallenges.value = 0
             container.alarmScheduler.cancelWatchdog()
             store.previousAlarmVolume?.let { setAlarmVolume(context, it) }
             store.previousAlarmVolume = null
