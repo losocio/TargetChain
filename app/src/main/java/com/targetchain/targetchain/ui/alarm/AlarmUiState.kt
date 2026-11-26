@@ -5,7 +5,14 @@ import com.targetchain.targetchain.data.model.ChallengeType
 
 data class AlarmUiState(
     val isLoading: Boolean = true,
-    val alarmName: String = "",
+    val routineName: String = "",
+    /** Name of the task that starts; blank is shown as "Task <number>". */
+    val taskName: String = "",
+    /** Position of the task in the routine (1-based); 0 if unknown. */
+    val taskNumber: Int = 0,
+    val taskCount: Int = 0,
+    /** Countdown that starts once the challenges are completed. */
+    val taskDurationSeconds: Int? = null,
     val challenges: List<AlarmChallenge> = emptyList(),
     val completedCount: Int = 0,
     val isCheckingPassword: Boolean = false,

@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.targetchain.targetchain.R
@@ -37,6 +38,7 @@ import com.targetchain.targetchain.data.model.ChallengeType
 import com.targetchain.targetchain.ui.common.NoTextToolbar
 import com.targetchain.targetchain.ui.common.PasswordKeyboardOptions
 import com.targetchain.targetchain.ui.common.TypedByHandOnly
+import com.targetchain.targetchain.ui.common.formatDuration
 import com.targetchain.targetchain.ui.theme.TargetChainTheme
 import kotlinx.coroutines.delay
 
@@ -67,12 +69,26 @@ fun AlarmScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (uiState.taskNumber > 0) {
+                Text(
+                    stringResource(R.string.alarm_task_position, uiState.taskNumber, uiState.taskCount),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
             Text(
-                text = stringResource(R.string.alarm_ringing_title),
+                text = uiState.taskName.ifBlank { stringResource(R.string.task_default_name, uiState.taskNumber.coerceAtLeast(1)) },
                 style = MaterialTheme.typography.displaySmall,
+                textAlign = TextAlign.Center,
             )
-            if (uiState.alarmName.isNotBlank()) {
-                Text(uiState.alarmName, style = MaterialTheme.typography.titleLarge)
+            Text(
+                uiState.routineName.ifBlank { stringResource(R.string.routine_default_name) },
+                style = MaterialTheme.typography.titleLarge,
+            )
+            uiState.taskDurationSeconds?.let {
+                Text(
+                    stringResource(R.string.alarm_task_duration, formatDuration(it)),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
             Spacer(Modifier.height(32.dp))
 
@@ -93,7 +109,7 @@ fun AlarmScreen(
                             showWrongPassword = uiState.showWrongPassword,
                             onSubmit = onPasswordSubmit,
                         )
-                        // Not configurable yet (step 5).
+                        // Not configurable (moved to the TFG).
                         ChallengeType.BARCODE, ChallengeType.NFC -> Unit
                     }
                 }
@@ -187,7 +203,11 @@ private fun AlarmScreenPreview() {
         AlarmScreen(
             uiState = AlarmUiState(
                 isLoading = false,
-                alarmName = "Work",
+                routineName = "Morning",
+                taskName = "Shower",
+                taskNumber = 2,
+                taskCount = 5,
+                taskDurationSeconds = 15 * 60,
                 challenges = listOf(AlarmChallenge(ChallengeType.PASSWORD, 1, "Desk")),
                 showWrongPassword = true,
             ),

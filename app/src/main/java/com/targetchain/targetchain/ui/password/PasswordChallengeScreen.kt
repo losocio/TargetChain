@@ -192,7 +192,7 @@ private fun DeletePasswordDialog(dialog: DeleteDialogState, onConfirm: () -> Uni
             },
         )
     } else {
-        val defaultName = stringResource(R.string.alarm_default_name)
+        val defaultName = stringResource(R.string.routine_default_name)
         val alarms = dialog.usedByAlarms.joinToString { it.ifBlank { defaultName } }
         AlertDialog(
             onDismissRequest = onDismiss,

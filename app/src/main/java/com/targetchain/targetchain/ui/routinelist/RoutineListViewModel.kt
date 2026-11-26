@@ -1,4 +1,4 @@
-package com.targetchain.targetchain.ui.alarmlist
+package com.targetchain.targetchain.ui.routinelist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -7,10 +7,13 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.targetchain.targetchain.alarm.AlarmScheduler
 import com.targetchain.targetchain.alarm.AlarmStateStore
+import com.targetchain.targetchain.alarm.RoutineRunner
 import com.targetchain.targetchain.appContainer
+import com.targetchain.targetchain.chain.RoutineRun
 import com.targetchain.targetchain.data.RoutineRepository
 import com.targetchain.targetchain.data.model.RoutineWithAlarms
 import com.targetchain.targetchain.data.model.firstAlarm
+import com.targetchain.targetchain.data.model.tasks
 import com.targetchain.targetchain.permissions.AlarmPermissions
 import com.targetchain.targetchain.permissions.PermissionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,9 +23,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class AlarmListViewModel(
+class RoutineListViewModel(
     private val repository: RoutineRepository,
     private val scheduler: AlarmScheduler,
+    private val runner: RoutineRunner,
     private val checkPermissions: () -> PermissionStatus,
     private val alarmStateStore: AlarmStateStore,
 ) : ViewModel() {
@@ -31,15 +35,15 @@ class AlarmListViewModel(
     private val scheduleFailed = MutableStateFlow(false)
     private val silentTestMode = MutableStateFlow(alarmStateStore.silentTestMode)
 
-    val uiState: StateFlow<AlarmListUiState> = combine(
+    val uiState: StateFlow<RoutineListUiState> = combine(
         repository.observeRoutines(),
         permissions,
         scheduleFailed,
         silentTestMode,
-        alarmStateStore.activeRoutineIdFlow,
-    ) { routines, permissions, failed, silent, activeRoutineId ->
-        AlarmListUiState(
-            alarms = routines.mapNotNull { it.toListItem(activeRoutineId) }
+        alarmStateStore.runFlow,
+    ) { routines, permissions, failed, silent, run ->
+        RoutineListUiState(
+            routines = routines.mapNotNull { it.toListItem(run) }
                 .sortedWith(compareBy({ it.startTimeMinutes }, { it.routineId })),
             permissions = permissions,
             scheduleFailed = failed,
@@ -49,7 +53,7 @@ class AlarmListViewModel(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         // Known values up front, so the permissions card doesn't flash before the first emission.
-        AlarmListUiState(permissions = permissions.value, silentTestMode = silentTestMode.value),
+        RoutineListUiState(permissions = permissions.value, silentTestMode = silentTestMode.value),
     )
 
     fun onResume() {
@@ -57,9 +61,8 @@ class AlarmListViewModel(
     }
 
     /**
-     * Enabling schedules the alarm; disabling cancels its pending ring. Disabling doesn't stop an
-     * alarm that is already ringing: that only happens from the alarm screen. A running routine
-     * can't be changed at all.
+     * Enabling schedules the routine's first task; disabling cancels it. A running routine can't
+     * be changed at all.
      */
     fun onEnabledChange(routineId: Long, isEnabled: Boolean) {
         viewModelScope.launch {
@@ -86,19 +89,45 @@ class AlarmListViewModel(
         }
     }
 
+    /** Debug builds only: the routine's first task rings now, as if its start time had arrived. */
+    fun onStartNow(routineId: Long) {
+        viewModelScope.launch {
+            val first = repository.getRoutine(routineId)?.firstAlarm ?: return@launch
+            runner.onAlarmFired(routineId, first.id, isRoutineStart = true, isWatchdog = false)
+        }
+    }
+
+    /** Debug builds only: ends the running routine now, without confirmation. */
+    fun onDebugEndRoutine() {
+        viewModelScope.launch { runner.endRoutine() }
+    }
+
     fun onSilentTestModeChange(enabled: Boolean) {
         alarmStateStore.silentTestMode = enabled
         silentTestMode.value = enabled
     }
 
-    private fun RoutineWithAlarms.toListItem(activeRoutineId: Long?): AlarmListItem? {
-        val startTime = firstAlarm?.startTimeMinutes ?: return null
-        return AlarmListItem(
+    private fun RoutineWithAlarms.toListItem(run: RoutineRun): RoutineListItem? {
+        val tasks = tasks
+        val startTime = tasks.firstOrNull()?.startTimeMinutes ?: return null
+        val running = if (run.routineId == routine.id) {
+            val currentAlarmId = run.ringingAlarmId ?: run.countdown?.alarmId
+            val index = tasks.indexOfFirst { it.id == currentAlarmId }
+            RunningTask(
+                taskNumber = index + 1,
+                countdownEndAtWallMs = run.countdown?.timing?.endAtWallMs,
+                isLastTask = run.countdown != null && run.countdown.nextAlarmId == null,
+            )
+        } else {
+            null
+        }
+        return RoutineListItem(
             routineId = routine.id,
             name = routine.name,
             startTimeMinutes = startTime,
+            taskCount = tasks.size,
             isEnabled = routine.isEnabled,
-            isRunning = routine.id == activeRoutineId,
+            running = running,
         )
     }
 
@@ -106,11 +135,13 @@ class AlarmListViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY]!!
-                AlarmListViewModel(
-                    repository = app.appContainer.routineRepository,
-                    scheduler = app.appContainer.alarmScheduler,
+                val container = app.appContainer
+                RoutineListViewModel(
+                    repository = container.routineRepository,
+                    scheduler = container.alarmScheduler,
+                    runner = container.routineRunner,
                     checkPermissions = { AlarmPermissions.status(app) },
-                    alarmStateStore = app.appContainer.alarmStateStore,
+                    alarmStateStore = container.alarmStateStore,
                 )
             }
         }

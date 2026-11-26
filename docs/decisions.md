@@ -171,3 +171,52 @@ Not part of the app: how the separate Claude desktop project (research and brain
 - **Also `MainActivity` (2026-11-24):** declared `resizeableActivity="false"` too, so TargetChain can't be opened in a pop-up window or split screen at all. Otherwise its own pop-up stayed over the alarm, and its permission buttons open Settings, where the app can be force stopped. An alarm app doesn't need multi-window.
 - **Known limitation, moved to Phase 2 (TFG):** another app's pop-up window over the alarm stays open, listed with the advanced anti-evasion measures next to blocking force stop.
 - **Discarded for now:** a full-screen overlay window (`TYPE_APPLICATION_OVERLAY`, with the existing "Display over other apps" permission) over every app while ringing. It would cover pop-ups and split screen, but the challenge and keyboard would have to move into the overlay, overlays are hidden over the lock screen (so both would be needed), and Back blocking and the step 1 and 3 tests would have to be redone. Too risky before the 29 Nov deadline with step 4 still pending; it's an option for the TFG.
+
+## Scope changes for the final delivery (2026-11-25)
+
+### QR/barcode and NFC challenges moved to the TFG; multi-device testing step removed (scope deviation, 2026-11-25)
+- **Decision:**
+  - The QR/barcode and NFC challenges leave the Proyectos IV scope and move to Phase 2 (TFG), listed with the other extra challenges. In Proyectos IV the only challenge type is the hidden password.
+  - Roadmap step 5 (QR/barcode and NFC challenges) and step 6 (multi-device testing and bug fixing) are removed. The roadmap now ends with step 4 (alarm chaining).
+  - CameraX and ML Kit, listed in the stack for QR scanning, aren't added in Phase 1.
+- **Why:** the deadline is 29 Nov and step 4, the core feature that must be complete, hasn't started yet. The remaining time goes to chaining. QR and NFC would also need new dependencies, camera and NFC permissions and their own anti-evasion tests on the device. Testing stays on the Samsung with Android 13, done with each step as before.
+- **What's kept for the TFG:** the challenge system is already generic. `ChallengeType` keeps `BARCODE` and `NFC` and `Challenge.expectedValue` stays in the data model (unused), and new types are shown inside `AlarmActivity`, so they inherit its anti-evasion measures with nothing extra (see step 3).
+
+## Step 4: alarm chaining (2026-11-25)
+
+### Countdown not changed by the phone's time: wall clock + monotonic anchor (option 2 of 4, chosen by the user)
+- **Decision:** the next task's alarm stays on `setAlarmClock` (wall clock). Next to the countdown's end (epoch ms, which a time zone change doesn't affect) we keep `elapsedRealtime` and the time left at that moment, plus the boot count. On `TIME_SET` / `TIMEZONE_CHANGED` (already received by `RescheduleReceiver`) the time left is recomputed from the monotonic clock, and the end is moved and scheduled again. After a reboot `elapsedRealtime` starts over, so the wall clock is trusted and a new anchor is taken. Pure logic in `chain/CountdownTiming.kt`, unit-tested.
+- **Why:** it keeps the alarm type already proven on the Samsung and covers moving the clock forward and back (moving it back would otherwise delay the next alarm, a way to escape).
+- **Known limit:** a time change while the phone is off (or before the first unlock after a reboot) isn't detected.
+- **Discarded:** (1) wall clock only: no work, but moving the clock shortens or lengthens the countdown; (3) `ELAPSED_REALTIME_WAKEUP` alarms: immune by design, but they drop `setAlarmClock`, which is the most reliable type against Doze and Samsung's battery management, and would need the step 1 reliability tests redone; (4) blocking the time change: not possible for an app.
+
+### Countdown foreground service of type `systemExempted`
+- **Decision:** `RoutineCountdownService` uses the `systemExempted` type with the normal (install-time) permission `FOREGROUND_SERVICE_SYSTEM_EXEMPTED`. The type is passed on API 34+ only; on 12/13 types aren't enforced.
+- **Why:** Android reserves it for apps that hold `USE_EXACT_ALARM` and keep a foreground service for their alarms, which is our case. It has no time limit and may start after a reboot.
+- **Discarded:** `dataSync` (6 h per day on Android 15+, and a task can last 12 h), `shortService` (3 min), `mediaPlayback` (nothing plays, and Android 15+ forbids it from `BOOT_COMPLETED`). Fallback if it fails on a device: `specialUse`.
+- **The service only shows the countdown.** The next task's alarm (or the routine's end) is always in AlarmManager, so it rings even if the service is killed. A watchdog (exact alarm every 60 s) brings the notification back.
+- **Time left in the notification:** a system chronometer counting down (`setChronometerCountDown`), which updates itself every second without waking the app. After a time change the notification is posted again with the new end.
+
+### Destructive migration to database version 3 (chosen by the user)
+- **Decision:** the tasks need a name and a duration in seconds (`alarms.name`, `alarms.durationSeconds` instead of `activityDurationMinutes`). Room keeps `fallbackToDestructiveMigration`: installing step 4 deletes the saved alarms **and passwords**.
+- **Why:** saves the time of a manual migration before the deadline; there's no real user data yet. Real migrations are still needed before the app is used for real (see step 1).
+- **Old scheduled alarms:** alarms scheduled by step 3 have no routine id in their intent and are ignored when they fire.
+
+### A task is an `Alarm` in the code
+- **Decision:** the UI says "Task"; the code keeps the `Alarm` entity and table (each row is a task: its alarm, tone, challenges, name and duration). The list and editor packages were renamed (`routinelist`, `routineedit`).
+- **Why:** renaming the entity would touch almost every file (scheduler, receivers, services, alarm screen) four days before the deadline, for no functional gain. `architecture.md` explains the mapping.
+
+### Routine editor: one shared draft, task editor on its own screen
+- **Decision:** the routine editor, the task editor and the step 3 screens share one `RoutineEditViewModel` (nested graph), which holds the whole routine. The task editor and the challenge screens act on the task chosen in the routine editor (`editingTaskIndex`). Save replaces all the routine's tasks and challenges in one transaction. A routine always keeps at least one task; tasks are reordered with up/down arrows, as challenges.
+- **Duration entered in three numeric fields** (hours : minutes : seconds), chosen by the user over a timer-style keypad. Empty fields count as 0; invalid values leave the task without duration, so it can't be saved.
+- **Earliest end** = start time + all durations; shown with "+n d" when it's on a later day.
+
+### Running routine: one state, one runner
+- **Decision:** `RoutineRunner` is the only place that moves a routine forward (ring → countdown → next task → end). The state (`RoutineRun`: routine, ringing task or countdown) is saved in one SharedPreferences commit before acting, so a reboot or kill continues from it. The ringing service no longer writes this state; it only plays the tone and runs the anti-evasion checks.
+- **Countdown started from the alarm screen:** the alarm screen calls the runner while it's still visible and closes afterwards, because Android only lets a foreground service start from the foreground (or from an alarm).
+- **Which alarm rings is decided in one pure function** (`decideAlarmFire`): routine start with nothing running → rings; routine start while another runs (ringing or any countdown) → skipped (switch off + notification); the running routine's expected next task or ringing task → rings; anything else (stale alarms, a watchdog after the alarm stopped) → ignored.
+- **Lock:** `routineId` stays set during every countdown, so the step 3 locks (list, editor, repository) cover the countdowns with no extra code. Passwords used by any saved routine already can't be deleted.
+- **"Next task" from the notification** opens `MainActivity` with an extra; the dialog is drawn by `MainActivity` over any screen. The dialog only applies to the countdown it was asked for: if the next task rings meanwhile, it disappears.
+
+### Debug shortcuts (debug builds only)
+- Stop on the alarm screen counts as completing the challenges. "3 s" (task editor), "All to 3 s" (routine editor; both were 1 s at first, changed on 2026-11-26 because 1 second was too fast to check that each screen is right), "Start now" (list; goes through the same check as a real start, so it can also test the "another routine is running" case), "End routine" (list row and notification) during any countdown.

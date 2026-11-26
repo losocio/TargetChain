@@ -18,10 +18,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.targetchain.targetchain.data.model.ChallengeConfig
 import com.targetchain.targetchain.data.model.ChallengeType
-import com.targetchain.targetchain.ui.alarmedit.AlarmEditScreen
-import com.targetchain.targetchain.ui.alarmedit.AlarmEditViewModel
-import com.targetchain.targetchain.ui.alarmlist.AlarmListScreen
-import com.targetchain.targetchain.ui.alarmlist.AlarmListViewModel
 import com.targetchain.targetchain.ui.challenges.ChallengeListScreen
 import com.targetchain.targetchain.ui.challenges.ChallengeTypeScreen
 import com.targetchain.targetchain.ui.password.NewPasswordScreen
@@ -30,16 +26,24 @@ import com.targetchain.targetchain.ui.password.PasswordChallengeScreen
 import com.targetchain.targetchain.ui.password.PasswordChallengeViewModel
 import com.targetchain.targetchain.ui.ringtone.RingtonePickerScreen
 import com.targetchain.targetchain.ui.ringtone.RingtonePickerViewModel
+import com.targetchain.targetchain.ui.routineedit.RoutineEditScreen
+import com.targetchain.targetchain.ui.routineedit.RoutineEditViewModel
+import com.targetchain.targetchain.ui.routineedit.TaskEditScreen
+import com.targetchain.targetchain.ui.routinelist.RoutineListScreen
+import com.targetchain.targetchain.ui.routinelist.RoutineListViewModel
 
 /** String routes; argument names are the ViewModels' SavedStateHandle keys. */
 private object Routes {
-    const val ALARM_LIST = "alarms"
+    const val ROUTINE_LIST = "routines"
 
-    /** Nested graph with the editor and its sub-screens, which share one AlarmEditViewModel. */
-    const val ALARM_EDIT_GRAPH = "alarm/{${AlarmEditViewModel.ARG_ROUTINE_ID}}"
-    fun alarmEdit(routineId: Long) = "alarm/$routineId"
+    /** Nested graph with the routine editor and its sub-screens, which share one RoutineEditViewModel. */
+    const val ROUTINE_EDIT_GRAPH = "routine/{${RoutineEditViewModel.ARG_ROUTINE_ID}}"
+    fun routineEdit(routineId: Long) = "routine/$routineId"
 
-    const val ALARM_EDITOR = "alarmEditor"
+    const val ROUTINE_EDITOR = "routineEditor"
+
+    /** The task chosen in the routine editor (RoutineEditUiState.editingTaskIndex). */
+    const val TASK_EDITOR = "task"
 
     const val RINGTONE_PICKER = "ringtone?${RingtonePickerViewModel.ARG_SELECTED_URI}={${RingtonePickerViewModel.ARG_SELECTED_URI}}"
     fun ringtonePicker(selectedUri: String?) =
@@ -54,39 +58,50 @@ private object Routes {
 /** Key of the password just created, set on the password challenge screen's back stack entry. */
 private const val CREATED_PASSWORD_KEY = "createdPassword"
 
+/** @param onRequestAdvance asks to confirm "Next task" / "End routine" (dialog shown by MainActivity). */
 @Composable
-fun TargetChainNavHost() {
+fun TargetChainNavHost(onRequestAdvance: () -> Unit) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = Routes.ALARM_LIST) {
-        composable(Routes.ALARM_LIST) { entry ->
-            AlarmListScreen(
-                viewModel = viewModel(factory = AlarmListViewModel.Factory),
-                onAddAlarm = {
-                    entry.ifResumed { navController.navigate(Routes.alarmEdit(AlarmEditViewModel.NEW_ROUTINE_ID)) }
+    NavHost(navController = navController, startDestination = Routes.ROUTINE_LIST) {
+        composable(Routes.ROUTINE_LIST) { entry ->
+            RoutineListScreen(
+                viewModel = viewModel(factory = RoutineListViewModel.Factory),
+                onAddRoutine = {
+                    entry.ifResumed { navController.navigate(Routes.routineEdit(RoutineEditViewModel.NEW_ROUTINE_ID)) }
                 },
-                onOpenAlarm = { routineId ->
-                    entry.ifResumed { navController.navigate(Routes.alarmEdit(routineId)) }
+                onOpenRoutine = { routineId ->
+                    entry.ifResumed { navController.navigate(Routes.routineEdit(routineId)) }
                 },
+                onRequestAdvance = onRequestAdvance,
             )
         }
 
         navigation(
-            startDestination = Routes.ALARM_EDITOR,
-            route = Routes.ALARM_EDIT_GRAPH,
-            arguments = listOf(navArgument(AlarmEditViewModel.ARG_ROUTINE_ID) { type = NavType.LongType }),
+            startDestination = Routes.ROUTINE_EDITOR,
+            route = Routes.ROUTINE_EDIT_GRAPH,
+            arguments = listOf(navArgument(RoutineEditViewModel.ARG_ROUTINE_ID) { type = NavType.LongType }),
         ) {
-            composable(Routes.ALARM_EDITOR) { entry ->
-                AlarmEditScreen(
-                    viewModel = entry.alarmEditViewModel(navController),
+            composable(Routes.ROUTINE_EDITOR) { entry ->
+                RoutineEditScreen(
+                    viewModel = entry.routineEditViewModel(navController),
+                    onOpenTask = { entry.ifResumed { navController.navigate(Routes.TASK_EDITOR) } },
+                    // Leaving the graph discards the unsaved edit along with its ViewModel.
+                    onClose = {
+                        entry.ifResumed { navController.popBackStack(Routes.ROUTINE_EDIT_GRAPH, inclusive = true) }
+                    },
+                )
+            }
+
+            composable(Routes.TASK_EDITOR) { entry ->
+                TaskEditScreen(
+                    viewModel = entry.routineEditViewModel(navController),
                     onPickRingtone = { selectedUri ->
                         entry.ifResumed { navController.navigate(Routes.ringtonePicker(selectedUri)) }
                     },
                     onOpenChallenges = { entry.ifResumed { navController.navigate(Routes.CHALLENGE_LIST) } },
-                    // Leaving the graph discards the unsaved edit along with its ViewModel.
-                    onClose = {
-                        entry.ifResumed { navController.popBackStack(Routes.ALARM_EDIT_GRAPH, inclusive = true) }
-                    },
+                    // Back keeps the changes in the routine draft; they're saved from the routine editor.
+                    onBack = { entry.ifResumed { navController.popBackStack() } },
                 )
             }
 
@@ -100,7 +115,7 @@ fun TargetChainNavHost() {
                     },
                 ),
             ) { entry ->
-                val editViewModel = entry.alarmEditViewModel(navController)
+                val editViewModel = entry.routineEditViewModel(navController)
                 RingtonePickerScreen(
                     viewModel = viewModel(factory = RingtonePickerViewModel.Factory),
                     onConfirm = { selectedUri ->
@@ -115,7 +130,7 @@ fun TargetChainNavHost() {
 
             composable(Routes.CHALLENGE_LIST) { entry ->
                 ChallengeListScreen(
-                    viewModel = entry.alarmEditViewModel(navController),
+                    viewModel = entry.routineEditViewModel(navController),
                     onAddChallenge = { entry.ifResumed { navController.navigate(Routes.CHALLENGE_TYPES) } },
                     onBack = { entry.ifResumed { navController.popBackStack() } },
                 )
@@ -127,7 +142,7 @@ fun TargetChainNavHost() {
                         entry.ifResumed {
                             when (type) {
                                 ChallengeType.PASSWORD -> navController.navigate(Routes.PASSWORD_CHALLENGE)
-                                // Not offered yet (step 5).
+                                // Not offered (moved to the TFG).
                                 ChallengeType.BARCODE, ChallengeType.NFC -> Unit
                             }
                         }
@@ -137,7 +152,7 @@ fun TargetChainNavHost() {
             }
 
             composable(Routes.PASSWORD_CHALLENGE) { entry ->
-                val editViewModel = entry.alarmEditViewModel(navController)
+                val editViewModel = entry.routineEditViewModel(navController)
                 val editState by editViewModel.uiState.collectAsStateWithLifecycle()
                 val viewModel: PasswordChallengeViewModel = viewModel(factory = PasswordChallengeViewModel.Factory)
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -193,11 +208,11 @@ fun TargetChainNavHost() {
     }
 }
 
-/** The editor's ViewModel, shared by every screen of the alarm edit graph. */
+/** The editor's ViewModel, shared by every screen of the routine edit graph. */
 @Composable
-private fun NavBackStackEntry.alarmEditViewModel(navController: NavController): AlarmEditViewModel {
-    val graphEntry = remember(this) { navController.getBackStackEntry(Routes.ALARM_EDIT_GRAPH) }
-    return viewModel(viewModelStoreOwner = graphEntry, factory = AlarmEditViewModel.Factory)
+private fun NavBackStackEntry.routineEditViewModel(navController: NavController): RoutineEditViewModel {
+    val graphEntry = remember(this) { navController.getBackStackEntry(Routes.ROUTINE_EDIT_GRAPH) }
+    return viewModel(viewModelStoreOwner = graphEntry, factory = RoutineEditViewModel.Factory)
 }
 
 /**

@@ -9,6 +9,10 @@ data class RoutineWithAlarms(
     val alarms: List<Alarm>,
 )
 
-/** First alarm of the chain. While routines have a single alarm, it is the only one. */
+/** The routine's tasks in order. */
+val RoutineWithAlarms.tasks: List<Alarm>
+    get() = alarms.sortedBy { it.position }
+
+/** First task of the chain: the one with the routine's start time. */
 val RoutineWithAlarms.firstAlarm: Alarm?
     get() = alarms.minByOrNull { it.position }

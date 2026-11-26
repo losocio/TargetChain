@@ -8,3 +8,10 @@ import java.time.format.FormatStyle
 fun formatTime(minutesOfDay: Int): String =
     LocalTime.of(minutesOfDay / 60, minutesOfDay % 60)
         .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
+
+/** Time of day ([secondsOfDay] since midnight); seconds are shown only when they aren't 0. */
+fun formatTimeOfDaySeconds(secondsOfDay: Int): String {
+    val time = LocalTime.ofSecondOfDay(secondsOfDay.toLong())
+    val style = if (time.second == 0) FormatStyle.SHORT else FormatStyle.MEDIUM
+    return time.format(DateTimeFormatter.ofLocalizedTime(style))
+}

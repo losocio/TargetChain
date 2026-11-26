@@ -12,6 +12,7 @@ Permissions needed, odd behaviors of Android 12/13 (and newer versions taken int
 | `USE_FULL_SCREEN_INTENT` | Open the alarm screen over the lock screen | Granted on 12/13. On 14+ checked with `canUseFullScreenIntent()`, with a link to `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`. |
 | `SYSTEM_ALERT_WINDOW` | Start (and reopen) the alarm screen from the background while the phone is in use | Granted by the user in "Display over other apps" (`ACTION_MANAGE_OVERLAY_PERMISSION`), checked with `Settings.canDrawOverlays()`. |
 | `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Ringing service | A foreground service type is required on 14+; we use `mediaPlayback`. |
+| `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` (step 4) | Countdown service between tasks | Normal permission, granted at install. On 14+ the `systemExempted` type is only allowed to apps that hold `USE_EXACT_ALARM`/`SCHEDULE_EXACT_ALARM` and use the service for their alarms (our case). On 12/13 types aren't enforced; the type is passed to `startForeground` on 34+ only. To check on device: the countdown notification appears. |
 | `RECEIVE_BOOT_COMPLETED` | Reschedule after reboot | — |
 | `WAKE_LOCK` | Keep the CPU awake while the tone plays (ExoPlayer `WAKE_MODE_LOCAL`) | — |
 
@@ -89,6 +90,15 @@ Permissions needed, odd behaviors of Android 12/13 (and newer versions taken int
   - Split screen with two other apps: split screen stays; the alarm covers the app that was opened first (whatever its position) and the second one stays usable.
   - In every case `AlarmActivity` counts as visible, so the per-second check doesn't react. The other window can be used to read a password stored on the phone, or to open Settings and force stop the app. It applies since step 1.
 - **Solution:** `AlarmActivity` is `resizeableActivity="false"`. Verified on device: split screen closes and the alarm appears full screen, and the alarm screen can't be put in a pop-up or split screen. A pop-up window already open stayed open over it, also TargetChain's own list, so `MainActivity` is non-resizable too (TargetChain can't be in a pop-up or split screen at all; to check on device). Another app's pop-up window over the alarm is a known limitation, moved to Phase 2 (see `decisions.md`).
+
+### Countdown between tasks (step 4)
+- **Seen on device (2026-11-26, Samsung, Android 13):** all the step 4 device tests pass: the `systemExempted` countdown notification appears, the next task rings on time with the screen off, after a killed app (the notification comes back) and after a reboot or with the phone off past its time, and moving the clock or changing the time zone doesn't change the time left.
+- **Foreground service start:** a foreground service may only start from the foreground or from an exempt event. The countdown service starts from the alarm screen (still visible when the challenges are completed), from "Next task" in the app, after a reboot (`BOOT_COMPLETED` is exempt, and `systemExempted` isn't in Android 15's list of types forbidden from it) and from the countdown watchdog (exact alarms with allow-while-idle may start foreground services). Every start is wrapped in a try/catch: the next alarm doesn't depend on the service.
+- **Killed service:** the next task's alarm is in AlarmManager, so it still rings. The countdown watchdog (`setExactAndAllowWhileIdle`, every 60 s; in Doze Android may space it to about 9 minutes) restarts the service so the notification comes back. Force stop clears all alarms (known risk, Phase 2).
+- **Next alarm shown in the status bar:** the next task's alarm uses `setAlarmClock`, so the system shows it as the next alarm (lock screen, status bar icon). The routine's end and the watchdog use plain exact alarms, so they don't show.
+- **Time left in the notification:** a system chronometer counting down to the end (`setUsesChronometer` + `setChronometerCountDown`), updated by the system every second. Its end is wall clock time, so after a time change the notification is posted again.
+- **Time and time zone changes:** `TIME_SET` and `TIMEZONE_CHANGED` reach the manifest receiver (they're exempt from the implicit broadcast limits). The countdown keeps the time it had left (monotonic clock, see `decisions.md`). `Settings.Global.BOOT_COUNT` (no permission) tells whether the monotonic anchor belongs to this boot. Not detected: a change while the phone is off.
+- **Notification can be dismissed on Android 14+:** users can swipe away foreground service notifications since Android 14; the service keeps running. Not the case on the Samsung (Android 13).
 
 ## Samsung
 

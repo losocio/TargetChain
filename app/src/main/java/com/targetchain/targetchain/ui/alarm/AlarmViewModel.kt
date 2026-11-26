@@ -11,6 +11,7 @@ import com.targetchain.targetchain.alarm.AlarmRingingService
 import com.targetchain.targetchain.appContainer
 import com.targetchain.targetchain.data.PasswordRepository
 import com.targetchain.targetchain.data.RoutineRepository
+import com.targetchain.targetchain.data.model.tasks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Challenges of the ringing alarm, shown one by one. Progress lives in [AlarmRingingService]
+ * The task whose alarm rings, and its challenges, shown one by one. Progress lives in [AlarmRingingService]
  * (in memory), so it survives this screen being recreated but not a reboot or a killed process.
  */
 class AlarmViewModel(
@@ -43,12 +44,17 @@ class AlarmViewModel(
         viewModelScope.launch {
             val alarm = runCatching { routineRepository.getAlarm(alarmId) }.getOrNull()
             val routine = alarm?.let { routineRepository.getRoutine(it.routineId) }
+            val tasks = routine?.tasks.orEmpty()
             val challenges = alarm?.let { routineRepository.getChallenges(it.id) }.orEmpty()
             val passwordNames = passwordRepository.observePasswords().first().associate { it.id to it.name }
             localState.update {
                 it.copy(
                     isLoading = false,
-                    alarmName = routine?.routine?.name.orEmpty(),
+                    routineName = routine?.routine?.name.orEmpty(),
+                    taskName = alarm?.name.orEmpty(),
+                    taskNumber = tasks.indexOfFirst { task -> task.id == alarmId } + 1,
+                    taskCount = tasks.size,
+                    taskDurationSeconds = alarm?.durationSeconds,
                     challenges = challenges.map { challenge ->
                         AlarmChallenge(
                             type = challenge.type,
@@ -83,7 +89,7 @@ class AlarmViewModel(
                 // The persisted ringing alarm is the source of truth; the intent extra is a fallback.
                 val alarmId = container.alarmStateStore.ringingAlarmId
                     ?: createSavedStateHandle().get<Long>(AlarmReceiver.EXTRA_ALARM_ID)
-                    ?: AlarmReceiver.NO_ALARM_ID
+                    ?: AlarmReceiver.NO_ID
                 AlarmViewModel(alarmId, container.routineRepository, container.passwordRepository)
             }
         }

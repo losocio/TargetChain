@@ -119,3 +119,50 @@ For each case, set it up before the alarm rings ("Next minute (debug)") and tell
 - [x] Try to open TargetChain in a pop-up window or split screen (from Recents or with the gesture): it isn't allowed, or it opens full screen.
 - [x] With silent test mode on, let an alarm ring ("Next minute (debug)") while using another app: the alarm appears full screen as before, and completing its challenges stops it.
 - [x] Open the app normally: the list, the editor and the challenge screens work as before.
+
+## Step 4
+
+The database version changed: the alarms **and passwords** created in step 3 are deleted when the new version is installed. Silent test mode on for all of these unless a test says otherwise.
+
+### Routine and task editors
+- [x] The list is titled "Routines". Tap +: the routine editor shows name, start time, one task ("1. Task 1", "No duration" and "No challenges" in red), "Add task", "Earliest end: set every task's duration", the message about challenges and durations, and Save disabled.
+- [x] Duration fields: 13 hours, 60 minutes, 60 seconds or all zeros show the "Between 1 second and 12 hours" error and the task can't be saved; 12 : 0 : 0 is accepted; letters can't be typed. "3 s (debug)" sets 0 : 0 : 3.
+- [x] Add two more tasks ("Add task" opens each new one). Each one starts with the default tone, no challenges and no duration, and its settings are independent of the others.
+- [x] Move tasks with the arrows and delete one: the order and numbers change. With a single task left, its delete button is disabled.
+- [x] "Earliest end" = start time + the sum of the durations; with a start time of 23:00 and durations adding up to more than 1 hour it shows "(+1 d)". "All to 3 s (debug)" sets every task to 3 s.
+- [x] Save is only enabled when every task has a challenge and a duration. Save: the list row shows the time, the name and "3 tasks", with the switch on.
+- [x] Open the routine, change a task (name, tone, challenges, duration) and the routine name, then press Back in the routine editor: reopening it shows nothing changed. Back from the task editor keeps the changes until you leave the routine editor.
+
+### Chain on time (silent test mode on, short durations such as 20 s)
+- [x] Routine with 3 tasks, "Next minute (debug)", save, lock the phone. Task 1 rings: the alarm screen shows "Task 1 of 3", the task name, the routine name and "Duration: …".
+- [x] Complete its challenges: the alarm screen closes, the tone stops and the alarm volume goes back to what it was. A silent notification shows "Task 1 of 3 · name", the time left counting down, "Next: <task 2>" and a "Next task" button. No pop-up, the screen isn't reopened and the volume isn't forced: use other apps normally.
+- [x] The list row shows "Task 1 of 3 · 00:15 left" counting down, with the switch and delete disabled; tapping it shows the message instead of opening the editor.
+- [x] When the countdown ends, task 2 rings with its own tone and challenges (all the step 1 and 3 anti-evasion checks still apply: Back, Home, Recents, volume down, screen off).
+- [x] Take a long time on task 2's challenge (e.g. 1 minute) with a 20 s duration: after completing it, the countdown starts at 20 s (the challenge time doesn't count).
+- [x] During the last task's countdown the notification says "Last task" and the button is "End routine". When it ends: the notification disappears with no sound, the switch is off, and the routine can be edited again.
+
+### Next task / End routine (silent test mode on, long durations such as 10 min)
+- [x] During task 1's countdown, tap "Next task" in the list row: a dialog asks for confirmation. Cancel: nothing changes. Confirm: task 2 rings now with its challenges.
+- [x] During task 2's countdown, tap "Next task" in the notification: the app opens with the same dialog; confirm: task 3 rings. Also try it with the phone locked (it asks to unlock first) and with the app closed.
+- [x] During the last countdown, "End routine" (list or notification) with confirmation ends the routine: notification gone, switch off, editable again.
+- [x] Open the dialog from the notification, then wait until the next task rings by itself: after completing it, the old dialog isn't shown any more.
+
+### Reliability during the countdown (silent test mode on)
+- [x] During a countdown of about 2 minutes, lock the phone and leave it with the screen off: the next task rings on time.
+- [x] During a countdown, kill the app (`adb shell am crash com.targetchain.targetchain`): the next task still rings on time. Tell me whether the notification comes back (within about a minute) or stays gone until the next task.
+- [x] During a countdown of about 5 minutes, reboot and unlock: the notification comes back with the right time left, and the next task rings on time.
+- [x] During a countdown of about 1 minute, power off the phone for about 2 minutes, then turn it on and unlock: the next task rings within a few seconds. Same during the last task's countdown: the routine just ends (no sound), the switch is off.
+- [x] During a countdown of about 10 minutes, turn off automatic date and time and move the clock 1 hour forward: the time left (notification and list) stays the same, and the next task rings when it should (not right away). Then move it 1 hour back: same. Then change the time zone: same. Turn automatic date and time back on.
+
+### One routine at a time and locks (silent test mode on)
+- [x] During routine A's countdown, let routine B's start time arrive (or tap B's "Start now (debug)"): B doesn't ring, its switch turns off and a notification says it didn't run because another routine was running. A continues normally.
+- [x] Same while routine A's alarm is ringing, and during A's last task's countdown: B is skipped in both cases.
+- [x] During a countdown, the running routine can't be edited, disabled or deleted (list), and a password it uses can't be deleted (Password screen of another routine). Other routines can be edited.
+
+### Debug shortcuts
+- [x] "Start now (debug)" in the list makes the routine's first task ring immediately.
+- [x] "Stop (debug)" on the alarm screen starts that task's countdown instead of ending the routine.
+- [x] "End routine (debug)" in the list row and in the notification during any countdown ends the routine at once, without confirmation.
+
+### Final check with sound (outside the library, silent test mode off)
+- [x] A 2-task routine: each task rings with its tone at max volume, and the countdown between them is silent.

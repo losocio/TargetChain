@@ -42,3 +42,11 @@ One line per prompt sent to the AI assistant. Slash commands (`/effort`, `/btw`,
 7. Report the results of the non-resizable alarm screen tests: split screen closes and the alarm can't be put in a pop-up, but an already open pop-up (another app or TargetChain's own list) stays open.
 8. Approve making the main screen non-resizable too, so TargetChain's own pop-up can't stay over the alarm.
 9. Report that all the non-resizable main screen tests pass and mark step 3 as completed.
+10. Move the QR/barcode and NFC challenges to Phase 2 and remove roadmap step 6 (multi-device testing); update Phase 1 and the roadmap in `claude-code-instructions.md` and document the deviation in `decisions.md` and other notes.
+
+## Step 4
+1. Start step 4 (alarm chaining): routines as ordered tasks with alarm, challenges and duration, countdown with a foreground service and notification (next task / end routine), one routine at a time, locks during countdowns and debug shortcuts; update the current status and `steps-functionality.md`, and show the plan (screens, data model and migration, routine lifecycle and persisted state, tests, time change options, permissions, cut candidates) before writing code.
+2. Ask for a clearer explanation of the time and time zone change options (section 5 of the step 4 plan).
+3. Choose the options for step 4: monotonic-anchor correction for time changes (option 2), `systemExempted` foreground service with its permission, destructive database migration and H : M : S duration fields; this approves the plan.
+4. Change the 1 s debug duration buttons to 3 s, because 1 second is too fast to check that the screens are right.
+5. Report that all the step 4 device tests pass and mark step 4 as completed.

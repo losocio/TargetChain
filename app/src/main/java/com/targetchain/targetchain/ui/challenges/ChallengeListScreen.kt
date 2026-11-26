@@ -28,18 +28,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.targetchain.targetchain.R
 import com.targetchain.targetchain.data.model.ChallengeConfig
-import com.targetchain.targetchain.ui.alarmedit.AlarmEditViewModel
+import com.targetchain.targetchain.ui.routineedit.RoutineEditViewModel
 
-/** The alarm's challenges in order. Changes are part of the alarm edit (saved with Save). */
+/** The editing task's challenges in order. Changes are part of the routine edit (saved with Save). */
 @Composable
 fun ChallengeListScreen(
-    viewModel: AlarmEditViewModel,
+    viewModel: RoutineEditViewModel,
     onAddChallenge: () -> Unit,
     onBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ChallengeListContent(
-        challenges = uiState.challenges,
+        challenges = uiState.editingTask.challenges,
         passwordNames = uiState.passwordNames,
         onAddChallenge = onAddChallenge,
         onMove = viewModel::onChallengeMoved,

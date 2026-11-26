@@ -11,7 +11,7 @@ import com.targetchain.targetchain.data.model.SavedPassword
 
 @Database(
     entities = [Routine::class, Alarm::class, Challenge::class, SavedPassword::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {

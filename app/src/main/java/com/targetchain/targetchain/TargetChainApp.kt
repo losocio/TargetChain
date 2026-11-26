@@ -5,6 +5,7 @@ import android.content.Context
 import com.targetchain.targetchain.alarm.AlarmNotifications
 import com.targetchain.targetchain.alarm.AlarmScheduler
 import com.targetchain.targetchain.alarm.AlarmStateStore
+import com.targetchain.targetchain.alarm.RoutineRunner
 import com.targetchain.targetchain.data.PasswordRepository
 import com.targetchain.targetchain.data.RoutineRepository
 import com.targetchain.targetchain.data.db.AppDatabase
@@ -21,7 +22,7 @@ class TargetChainApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        AlarmNotifications.createChannel(this)
+        AlarmNotifications.createChannels(this)
     }
 }
 
@@ -35,6 +36,7 @@ class AppContainer(context: Context) {
     }
     val passwordRepository = PasswordRepository(database.passwordDao())
     val alarmScheduler = AlarmScheduler(context)
+    val routineRunner = RoutineRunner(context, alarmStateStore, routineRepository, alarmScheduler)
     val ringtoneCatalog = RingtoneCatalog(context)
 }
 

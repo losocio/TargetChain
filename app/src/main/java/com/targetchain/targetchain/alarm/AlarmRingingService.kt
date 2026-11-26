@@ -32,10 +32,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Foreground service that keeps the alarm ringing and shows the full-screen alarm notification.
- * The alarm keeps ringing until it is stopped from the alarm screen: the ringing state is persisted,
- * so a reboot (RescheduleReceiver) or a killed process (watchdog alarm) makes it ring again.
- * Challenge progress is kept only in memory, so after a reboot or a kill the challenges start over.
+ * Foreground service that keeps a task's alarm ringing and shows the full-screen alarm notification.
+ * The alarm keeps ringing until its challenges are completed on the alarm screen: the ringing state
+ * is persisted by [RoutineRunner], so a reboot (RescheduleReceiver) or a killed process (watchdog
+ * alarm) makes it ring again. Challenge progress is kept only in memory, so after a reboot or a kill
+ * the challenges start over.
  */
 class AlarmRingingService : Service() {
 
@@ -46,8 +47,8 @@ class AlarmRingingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val alarmId = intent?.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, AlarmReceiver.NO_ALARM_ID)
-            ?: AlarmReceiver.NO_ALARM_ID
+        val alarmId = intent?.getLongExtra(AlarmReceiver.EXTRA_ALARM_ID, AlarmReceiver.NO_ID)
+            ?: AlarmReceiver.NO_ID
 
         // Must be called promptly after startForegroundService, before any slow work.
         try {
@@ -67,10 +68,9 @@ class AlarmRingingService : Service() {
         isRinging = true
 
         val container = appContainer
-        container.alarmScheduler.scheduleWatchdog(alarmId)
+        container.alarmStateStore.activeRoutineId?.let { container.alarmScheduler.scheduleWatchdog(it, alarmId) }
         if (player == null) {
             _completedChallenges.value = 0
-            container.alarmStateStore.ringingAlarmId = alarmId
             // Don't overwrite it if we are ringing again after a kill: the volume is already at max.
             if (container.alarmStateStore.previousAlarmVolume == null) {
                 container.alarmStateStore.previousAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
@@ -111,8 +111,6 @@ class AlarmRingingService : Service() {
         val alarm = withContext(Dispatchers.IO) {
             runCatching { appContainer.routineRepository.getAlarm(alarmId) }.getOrNull()
         }
-        // Its routine is running until the alarm is stopped: it can't be edited or deleted.
-        if (alarm != null && isRinging) appContainer.alarmStateStore.activeRoutineId = alarm.routineId
         startPlayback(alarm?.ringtoneUri?.toUri() ?: Settings.System.DEFAULT_ALARM_ALERT_URI)
     }
 
@@ -185,29 +183,20 @@ class AlarmRingingService : Service() {
             context.startForegroundService(intent)
         }
 
-        /** Stops the ringing alarm for good: it won't ring again after a reboot or a kill. */
+        /**
+         * Stops the tone and the anti-evasion checks and restores the alarm volume. The routine's
+         * state (what comes next) is handled by [RoutineRunner], which calls this.
+         */
         fun stop(context: Context) {
             // Cleared here too, because stopService destroys the service asynchronously.
             isRinging = false
             val container = context.appContainer
             val store = container.alarmStateStore
-            val alarmId = store.ringingAlarmId
-            store.ringingAlarmId = null
-            store.activeRoutineId = null
             _completedChallenges.value = 0
             container.alarmScheduler.cancelWatchdog()
             store.previousAlarmVolume?.let { setAlarmVolume(context, it) }
             store.previousAlarmVolume = null
             context.stopService(Intent(context, AlarmRingingService::class.java))
-
-            // Alarms are one-shot: its switch turns off. Chaining will replace this with
-            // "advance to the next alarm".
-            if (alarmId != null) {
-                container.applicationScope.launch {
-                    val repository = container.routineRepository
-                    repository.getAlarm(alarmId)?.let { repository.disableRoutine(it.routineId) }
-                }
-            }
         }
 
         private fun setAlarmVolume(context: Context, volume: Int) {

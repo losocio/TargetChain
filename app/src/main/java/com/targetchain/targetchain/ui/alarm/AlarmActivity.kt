@@ -14,16 +14,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.targetchain.targetchain.BuildConfig
 import com.targetchain.targetchain.R
 import com.targetchain.targetchain.alarm.AlarmReceiver
 import com.targetchain.targetchain.alarm.AlarmRingingService
+import com.targetchain.targetchain.appContainer
 import com.targetchain.targetchain.ui.theme.TargetChainTheme
 
 /**
  * Full-screen alarm UI, shown over the lock screen by the ringing notification's full-screen
  * intent, or started directly by AlarmRingingService. The user can't leave it while the alarm rings,
- * and the alarm only stops once its last challenge is completed.
+ * and the alarm only stops once its last challenge is completed; then the task's countdown starts.
  */
 class AlarmActivity : ComponentActivity() {
 
@@ -42,7 +45,7 @@ class AlarmActivity : ComponentActivity() {
             TargetChainTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 LaunchedEffect(uiState.isFinished) {
-                    if (uiState.isFinished) stopAlarm()
+                    if (uiState.isFinished) completeTask()
                 }
                 // Debug builds show the alarm volume, to check the volume protection in silent test mode.
                 val debugText = if (BuildConfig.DEBUG) {
@@ -54,7 +57,7 @@ class AlarmActivity : ComponentActivity() {
                 AlarmScreen(
                     uiState = uiState,
                     onPasswordSubmit = viewModel::onPasswordSubmitted,
-                    onStop = ::stopAlarm,
+                    onStop = ::completeTask,
                     showStopButton = BuildConfig.DEBUG || uiState.hasNoChallenges,
                     debugText = debugText,
                 )
@@ -80,10 +83,21 @@ class AlarmActivity : ComponentActivity() {
         isVisible = false
     }
 
-    private fun stopAlarm() {
-        AlarmRingingService.stop(this)
-        finish()
+    /**
+     * The challenges were completed (or Stop, in debug builds): the tone stops and the task's
+     * countdown starts. Done while this screen is still visible, because a foreground service (the
+     * countdown's) may only be started from the foreground.
+     */
+    private fun completeTask() {
+        if (isCompleting) return
+        isCompleting = true
+        lifecycleScope.launch {
+            appContainer.routineRunner.completeRingingTask()
+            finish()
+        }
     }
+
+    private var isCompleting = false
 
     companion object {
         /** Whether the alarm screen is currently on screen. Read and written on the main thread. */

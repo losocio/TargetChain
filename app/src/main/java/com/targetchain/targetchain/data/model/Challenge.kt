@@ -6,8 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * A challenge that must be completed to dismiss an alarm. An alarm's challenges are shown one by
- * one, ordered by [position].
+ * A challenge that must be completed to dismiss a task's alarm. A task's challenges are shown one
+ * by one, ordered by [position].
  *
  * @property passwordId saved password of a [ChallengeType.PASSWORD] challenge. A password can't be
  *   deleted while a challenge uses it (RESTRICT).
@@ -40,7 +40,7 @@ data class Challenge(
     val expectedValue: String? = null,
 )
 
-/** A challenge as configured in the editor, before it belongs to a saved alarm. */
+/** A challenge as configured in the editor, before it belongs to a saved task. */
 data class ChallengeConfig(
     val type: ChallengeType,
     val passwordId: Long? = null,
